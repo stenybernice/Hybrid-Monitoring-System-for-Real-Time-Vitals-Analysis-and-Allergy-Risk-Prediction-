@@ -66,7 +66,7 @@ Both modules feed into a single **Flask + Chart.js dashboard** for real-time vis
 ## Getting Started
 
 ### Hardware Setup
-<img src="assets/hardware-setup.jpeg" alt="ESP32 sensor breadboard with live dashboard in background" width="700"/>
+<img src="hardware-setup.jpeg" alt="ESP32 sensor breadboard with live dashboard in background" width="700"/>
 ESP32 + MAX30102 + MLX90614 breadboard setup streaming live vitals (88 bpm, 89.0% SpO₂, 36.5°C) to the dashboard in real time.
 1. Wire MAX30102 and MLX90614 to ESP32 via I²C (SDA=21, SCL=22).
 2. Connect RED_LED, GREEN_LED, and BUZZER to GPIO 25, 4, and 27.
