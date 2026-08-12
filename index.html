@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allergy + Vitals Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0e1a;
+            --bg2: #101524;
+            --bg3: #161d2e;
+            --border: rgba(255,255,255,0.08);
+            --border-bright: rgba(255,255,255,0.15);
+            --text: #e2e8f4;
+            --text-muted: #6b7a99;
+            --text-dim: #3d4a63;
+            --teal: #00d4b8;
+            --teal-dim: rgba(0,212,184,0.12);
+            --red: #ff4b6e;
+            --red-dim: rgba(255,75,110,0.12);
+            --amber: #f59e0b;
+            --amber-dim: rgba(245,158,11,0.12);
+            --green: #22c55e;
+            --green-dim: rgba(34,197,94,0.12);
+            --blue: #3b82f6;
+            --blue-dim: rgba(59,130,246,0.12);
+            --purple: #a78bfa;
+            --purple-dim: rgba(167,139,250,0.12);
+            --font: 'IBM Plex Sans', sans-serif;
+            --mono: 'IBM Plex Mono', monospace;
+            --radius: 10px;
+            --radius-sm: 6px;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            padding: 0 28px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header-logo {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--teal);
+            letter-spacing: 0.08em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--teal);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+        .header-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .header-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .live-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--green-dim);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--green);
+            font-family: var(--mono);
+            letter-spacing: 0.06em;
+        }
+        .live-badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+        #clock {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Layout ── */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ── */
+        aside {
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section-label {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-family: var(--mono);
+            margin-bottom: 12px;
+        }
+
+        /* ── Form (Diagnostics card) ── */
+        .diagnostics-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .diagnostics-card h2 {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .diag-icon {
+            width: 20px; height: 20px;
+            border-radius: 5px;
+            background: var(--purple-dim);
+            border: 1px solid rgba(167,139,250,0.25);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .diag-icon svg { width: 11px; height: 11px; }
+
+        .field { margin-bottom: 10px; }
+        .field label {
+            display: block;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+            font-family: var(--mono);
+        }
+        .field input {
+            width: 100%;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 7px 10px;
+            font-size: 13px;
+            color: var(--text);
+            font-family: var(--mono);
+            transition: border-color 0.15s;
+            outline: none;
+        }
+        .field input:focus { border-color: var(--purple); }
+        .field input::placeholder { color: var(--text-dim); }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--purple);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 9px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: var(--font);
+            cursor: pointer;
+            margin-top: 4px;
+            transition: opacity 0.15s;
+            letter-spacing: 0.02em;
+        }
+        .submit-btn:hover { opacity: 0.88; }
+        .submit-btn:active { opacity: 0.75; }
+
+        .result-box {
+            margin-top: 12px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            min-height: 40px;
+            line-height: 1.5;
+            display: none;
+        }
+        .result-box.visible { display: block; }
+        .result-highlight { color: var(--purple); font-weight: 500; }
+
+        /* ── Main content ── */
+        main {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ── Vitals grid ── */
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .vital-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .vital-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+        .vital-card.card-hr::before   { background: var(--red); }
+        .vital-card.card-spo2::before { background: var(--teal); }
+        .vital-card.card-temp::before { background: var(--amber); }
+
+        .vital-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .vital-card-title {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+        .vital-icon {
+            width: 28px; height: 28px;
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .vital-icon svg { width: 14px; height: 14px; }
+        .vital-card.card-hr   .vital-icon { background: var(--red-dim); }
+        .vital-card.card-spo2 .vital-icon { background: var(--teal-dim); }
+        .vital-card.card-temp .vital-icon { background: var(--amber-dim); }
+
+        .vital-value-row { display: flex; align-items: baseline; gap: 5px; }
+        .vital-value {
+            font-size: 36px;
+            font-weight: 300;
+            font-family: var(--mono);
+            line-height: 1;
+        }
+        .vital-card.card-hr   .vital-value { color: var(--red); }
+        .vital-card.card-spo2 .vital-value { color: var(--teal); }
+        .vital-card.card-temp .vital-value { color: var(--amber); }
+
+        .vital-unit {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+
+        .vital-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .vital-label-small {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--mono);
+        }
+
+        /* Heart pulse animation */
+        .heart-pulse {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .pulse-ring {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: heartbeat 0.8s ease-in-out infinite;
+        }
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            20%       { transform: scale(1.4); opacity: 0.9; }
+            40%       { transform: scale(1); opacity: 1; }
+            60%       { transform: scale(1.2); opacity: 0.8; }
+        }
+
+        /* ── Status + Risk row ── */
+        .meta-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .meta-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .meta-label {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+        .risk-value {
+            font-size: 24px;
+            font-weight: 300;
+            font-family: var(--mono);
+            color: var(--text);
+        }
+
+        /* ── Status badge ── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: var(--mono);
+            letter-spacing: 0.06em;
+        }
+        .status-badge::before {
+            content: '';
+            width: 7px; height: 7px;
+            border-radius: 50%;
+        }
+        .badge-stable {
+            background: var(--green-dim);
+            border: 1px solid rgba(34,197,94,0.25);
+            color: var(--green);
+        }
+        .badge-stable::before { background: var(--green); }
+        .badge-warning {
+            background: var(--amber-dim);
+            border: 1px solid rgba(245,158,11,0.25);
+            color: var(--amber);
+        }
+        .badge-warning::before { background: var(--amber); }
+        .badge-critical {
+            background: var(--red-dim);
+            border: 1px solid rgba(255,75,110,0.3);
+            color: var(--red);
+        }
+        .badge-critical::before {
+            background: var(--red);
+            animation: blink-dot 0.7s ease-in-out infinite;
+        }
+        @keyframes blink-dot {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.1; }
+        }
+        .badge-unknown {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .badge-unknown::before { background: var(--text-dim); }
+
+        /* ── Charts section ── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .chart-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+        }
+        .chart-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .chart-title {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text);
+            letter-spacing: 0.04em;
+        }
+        .chart-subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+        .chart-latest {
+            font-family: var(--mono);
+            font-size: 20px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+        }
+        .chart-canvas-wrap { position: relative; height: 130px; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <!-- ══ HEADER ══ -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">
+                <div class="logo-dot"></div>
+                ALLERGO<span style="color:var(--text-muted)">SENSE</span>
+            </div>
+            <div>
+                <div class="header-title">Patient Monitoring System</div>
+                <div class="header-sub">ESP32 · MAX30102 · MLX90614</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="live-badge">LIVE</div>
+            <div id="clock">--:--:--</div>
+        </div>
+    </header>
+
+    <!-- ══ MAIN LAYOUT ══ -->
+    <div class="main-layout">
+
+        <!-- ══ SIDEBAR — Diagnostics form ══ -->
+        <aside>
+            <div>
+                <div class="section-label">Biomarker Input</div>
+                <div class="diagnostics-card">
+                    <h2>
+                        <div class="diag-icon">
+                            <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 1v10M1 6h10" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        Allergy Diagnostics
+                    </h2>
+
+                    <form id="form">
+                        <div class="field">
+                            <label for="Phl_p_1">Phl p 1 — Grass pollen</label>
+                            <input type="number" step="0.1" id="Phl_p_1" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Fel_d_1">Fel d 1 — Cat allergen</label>
+                            <input type="number" step="0.1" id="Fel_d_1" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Der_p_2">Der p 2 — Dust mite</label>
+                            <input type="number" step="0.1" id="Der_p_2" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Der_f_2">Der f 2 — Dust mite</label>
+                            <input type="number" step="0.1" id="Der_f_2" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Der_p_1">Der p 1 — Dust mite</label>
+                            <input type="number" step="0.1" id="Der_p_1" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Cup_a_1">Cup a 1 — Cypress pollen</label>
+                            <input type="number" step="0.1" id="Cup_a_1" placeholder="0.0" required>
+                        </div>
+                        <div class="field">
+                            <label for="Cyn_d_1">Cyn d 1 — Bermuda grass</label>
+                            <input type="number" step="0.1" id="Cyn_d_1" placeholder="0.0" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Run Prediction</button>
+                    </form>
+
+                    <div class="result-box" id="result-box">
+                        <span id="result"></span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ══ MAIN PANEL ══ -->
+        <main>
+
+            <!-- Vitals cards -->
+            <div>
+                <div class="section-label">Live Vitals</div>
+                <div class="vitals-grid">
+
+                    <!-- HR -->
+                    <div class="vital-card card-hr">
+                        <div class="vital-card-header">
+                            <div class="vital-card-title">HEART RATE</div>
+                            <div class="vital-icon">
+                                <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M7 12S1 8 1 4.5A3.5 3.5 0 017 2.5 3.5 3.5 0 0113 4.5C13 8 7 12 7 12z" fill="#ff4b6e" opacity="0.8"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="vital-value-row">
+                            <span class="vital-value" id="hr">--</span>
+                            <span class="vital-unit">BPM</span>
+                        </div>
+                        <div class="vital-footer">
+                            <span class="vital-label-small">60 – 100 normal</span>
+                            <div class="heart-pulse">
+                                <div class="pulse-ring"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SpO2 -->
+                    <div class="vital-card card-spo2">
+                        <div class="vital-card-header">
+                            <div class="vital-card-title">SpO₂</div>
+                            <div class="vital-icon">
+                                <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="7" cy="7" r="5" stroke="#00d4b8" stroke-width="1.5"/>
+                                    <circle cx="7" cy="7" r="2" fill="#00d4b8"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="vital-value-row">
+                            <span class="vital-value" id="spo2">--</span>
+                            <span class="vital-unit">%</span>
+                        </div>
+                        <div class="vital-footer">
+                            <span class="vital-label-small">≥ 95 normal</span>
+                        </div>
+                    </div>
+
+                    <!-- Temp -->
+                    <div class="vital-card card-temp">
+                        <div class="vital-card-header">
+                            <div class="vital-card-title">TEMPERATURE</div>
+                            <div class="vital-icon">
+                                <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="5.5" y="1" width="3" height="8" rx="1.5" stroke="#f59e0b" stroke-width="1.2"/>
+                                    <circle cx="7" cy="11" r="2" fill="#f59e0b"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="vital-value-row">
+                            <span class="vital-value" id="temp">--</span>
+                            <span class="vital-unit">°C</span>
+                        </div>
+                        <div class="vital-footer">
+                            <span class="vital-label-small">36.1 – 37.2 normal</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Risk + Status -->
+            <div class="meta-row">
+                <div class="meta-card">
+                    <div class="meta-label">RISK SCORE</div>
+                    <div class="risk-value" id="risk">--</div>
+                    <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono);">From clustering model</div>
+                </div>
+                <div class="meta-card">
+                    <div class="meta-label">PATIENT STATUS</div>
+                    <div>
+                        <span class="status-badge badge-unknown" id="status">Awaiting data</span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono);">Updated every 1.5 s</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div>
+                <div class="section-label">Trend Monitoring</div>
+                <div class="charts-grid">
+
+                    <div class="chart-card">
+                        <div class="chart-card-header">
+                            <div>
+                                <div class="chart-title">Heart Rate</div>
+                                <div class="chart-subtitle">BPM over time</div>
+                            </div>
+                            <div class="chart-latest" style="color:var(--red);" id="hr-latest">--</div>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="hrChart" role="img" aria-label="Real-time heart rate chart in BPM"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-card-header">
+                            <div>
+                                <div class="chart-title">Blood Oxygen (SpO₂)</div>
+                                <div class="chart-subtitle">% over time</div>
+                            </div>
+                            <div class="chart-latest" style="color:var(--teal);" id="spo2-latest">--</div>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="spo2Chart" role="img" aria-label="Real-time SpO2 percentage chart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        /* ── Clock ── */
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2,'0');
+            const m = String(now.getMinutes()).padStart(2,'0');
+            const s = String(now.getSeconds()).padStart(2,'0');
+            document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        /* ── Chart factory ── */
+        const MAX_POINTS = 30;
+
+        function makeChart(canvasId, label, borderColor, bgColor) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(MAX_POINTS).fill(''),
+                    datasets: [{
+                        label,
+                        data: Array(MAX_POINTS).fill(null),
+                        borderColor,
+                        backgroundColor: bgColor,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            display: false,
+                            ticks: { autoSkip: false }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: {
+                                color: '#6b7a99',
+                                font: { family: 'IBM Plex Mono', size: 10 },
+                                maxTicksLimit: 4,
+                            },
+                            border: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        const hrChart   = makeChart('hrChart',   'HR',   '#ff4b6e', 'rgba(255,75,110,0.08)');
+        const spo2Chart = makeChart('spo2Chart', 'SpO2', '#00d4b8', 'rgba(0,212,184,0.08)');
+
+        function pushToChart(chart, value) {
+            chart.data.datasets[0].data.push(value);
+            chart.data.labels.push('');
+            if (chart.data.datasets[0].data.length > MAX_POINTS) {
+                chart.data.datasets[0].data.shift();
+                chart.data.labels.shift();
+            }
+            chart.update('none');
+        }
+
+        /* ── Status badge renderer ── */
+        function renderBadge(statusText) {
+            const el  = document.getElementById('status');
+            const txt = (statusText || '').toLowerCase();
+            let cls   = 'badge-unknown';
+            let label = statusText || 'Unknown';
+
+            if (txt.includes('stable') || txt.includes('safe') || txt.includes('normal')) {
+                cls = 'badge-stable';
+            } else if (txt.includes('critical') || txt.includes('danger') || txt.includes('emergency')) {
+                cls = 'badge-critical';
+            } else if (txt.includes('warn') || txt.includes('alert') || txt.includes('caution')) {
+                cls = 'badge-warning';
+            }
+
+            el.className = 'status-badge ' + cls;
+            el.textContent = label;
+        }
+
+        /* ── LIVE VITALS FETCH (every 1.5 s) ── */
+        setInterval(async () => {
+            try {
+                let res = await fetch("/vitals");
+                if (!res.ok) throw new Error("Server down");
+
+                let data = await res.json();
+
+                const hrVal   = data.hr   != null ? parseFloat(data.hr).toFixed(0)  : '--';
+                const spo2Val = data.spo2 != null ? parseFloat(data.spo2).toFixed(1) : '--';
+                const tempVal = data.temp != null ? parseFloat(data.temp).toFixed(1) : '--';
+
+                document.getElementById('hr').textContent   = hrVal;
+                document.getElementById('spo2').textContent = spo2Val;
+                document.getElementById('temp').textContent = tempVal;
+                document.getElementById('risk').textContent = data.risk != null ? parseFloat(data.risk).toFixed(2) : '--';
+
+                document.getElementById('hr-latest').textContent   = hrVal !== '--' ? hrVal + ' bpm' : '--';
+                document.getElementById('spo2-latest').textContent = spo2Val !== '--' ? spo2Val + '%' : '--';
+
+                renderBadge(data.status);
+
+                if (data.hr   != null) pushToChart(hrChart,   parseFloat(data.hr));
+                if (data.spo2 != null) pushToChart(spo2Chart, parseFloat(data.spo2));
+
+            } catch (err) {
+                console.log("Polling error:", err.message);
+            }
+        }, 1500);
+
+        /* ── PREDICTION LOGIC ── */
+        document.getElementById("form").onsubmit = async function(e) {
+            e.preventDefault();
+            const resultBox = document.getElementById("result-box");
+            const resultEl  = document.getElementById("result");
+
+            resultBox.classList.add('visible');
+            resultEl.innerHTML = '<span style="color:var(--text-muted)">Running model...</span>';
+
+            let data = {
+                Phl_p_1: parseFloat(document.getElementById("Phl_p_1").value),
+                Fel_d_1: parseFloat(document.getElementById("Fel_d_1").value),
+                Der_p_2: parseFloat(document.getElementById("Der_p_2").value),
+                Der_f_2: parseFloat(document.getElementById("Der_f_2").value),
+                Der_p_1: parseFloat(document.getElementById("Der_p_1").value),
+                Cup_a_1: parseFloat(document.getElementById("Cup_a_1").value),
+                Cyn_d_1: parseFloat(document.getElementById("Cyn_d_1").value)
+            };
+
+            try {
+                let res = await fetch("/predict", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(data)
+                });
+
+                let result = await res.json();
+                resultEl.innerHTML =
+                    `<span class="result-highlight">${result.prediction}</span><br>` +
+                    `<span style="color:var(--text-muted)">Risk score: </span>` +
+                    `<span style="color:var(--text)">${result.risk_score}</span>`;
+            } catch (err) {
+                resultEl.innerHTML = '<span style="color:var(--red)">Connection error</span>';
+                console.error(err);
+            }
+        };
+    </script>
+</body>
+</html>
